@@ -1,0 +1,479 @@
+From 8d16d252932f7d2e874c1666b5f53da26f68fc65 Mon Sep 17 00:00:00 2001
+From: MartB <mart.b@outlook.de>
+Date: Mon, 8 Jan 2018 22:39:34 +0100
+Subject: [PATCH 1/1] Octeon: usg3p support
+
+---
+ target/linux/octeon/Makefile                       |  2 +-
+ .../linux/octeon/base-files/etc/board.d/01_network |  4 ++
+ .../linux/octeon/base-files/lib/preinit/01_sysinfo |  4 ++
+ .../octeon/base-files/lib/preinit/79_move_config   |  2 +-
+ .../octeon/base-files/lib/upgrade/platform.sh      |  6 +-
+ target/linux/octeon/image/Makefile                 |  8 +++
+ .../patches-4.14/101-ubnt-split-devicetrees.patch  | 23 +++++++
+ .../102-ubnt-add-erlite-usg3p-dts.patch            | 58 +++++++++++++++++
+ .../patches-4.14/103-ubnt_usg3p_support.patch      | 73 ++++++++++++++++++++++
+ .../patches-4.9/101-ubnt-split-devicetrees.patch   | 23 +++++++
+ .../102-ubnt-add-erlite-usg3p-dts.patch            | 58 +++++++++++++++++
+ .../patches-4.9/103-ubnt_usg3p_support.patch       | 73 ++++++++++++++++++++++
+ 12 files changed, 329 insertions(+), 5 deletions(-)
+ create mode 100644 target/linux/octeon/patches-4.14/101-ubnt-split-devicetrees.patch
+ create mode 100644 target/linux/octeon/patches-4.14/102-ubnt-add-erlite-usg3p-dts.patch
+ create mode 100644 target/linux/octeon/patches-4.14/103-ubnt_usg3p_support.patch
+ create mode 100644 target/linux/octeon/patches-4.9/101-ubnt-split-devicetrees.patch
+ create mode 100644 target/linux/octeon/patches-4.9/102-ubnt-add-erlite-usg3p-dts.patch
+ create mode 100644 target/linux/octeon/patches-4.9/103-ubnt_usg3p_support.patch
+
+diff --git a/target/linux/octeon/Makefile b/target/linux/octeon/Makefile
+index 254f22119f..bbf1296c21 100644
+--- a/target/linux/octeon/Makefile
++++ b/target/linux/octeon/Makefile
+@@ -13,7 +13,7 @@ FEATURES:=squashfs ramdisk pci usb
+ CPU_TYPE:=octeon
+ MAINTAINER:=John Crispin <john@phrozen.org>
+ 
+-KERNEL_PATCHVER:=4.9
++KERNEL_PATCHVER:=4.14
+ 
+ define Target/Description
+ 	Build firmware images for Cavium Networks Octeon-based boards.
+diff --git a/target/linux/octeon/base-files/etc/board.d/01_network b/target/linux/octeon/base-files/etc/board.d/01_network
+index 79e508955e..7b65517d0e 100755
+--- a/target/linux/octeon/base-files/etc/board.d/01_network
++++ b/target/linux/octeon/base-files/etc/board.d/01_network
+@@ -12,6 +12,10 @@ erlite)
+ 	ucidef_set_interfaces_lan_wan "eth0" "eth1"
+ 	;;
+ 
++usg3p)
++       ucidef_set_interfaces_lan_wan "eth1" "eth0"
++       ;;
++
+ *)
+ 	ucidef_set_interfaces_lan_wan "eth0" "eth1"
+ 	;;
+diff --git a/target/linux/octeon/base-files/lib/preinit/01_sysinfo b/target/linux/octeon/base-files/lib/preinit/01_sysinfo
+index d8f467ed27..37f59c01ff 100644
+--- a/target/linux/octeon/base-files/lib/preinit/01_sysinfo
++++ b/target/linux/octeon/base-files/lib/preinit/01_sysinfo
+@@ -9,6 +9,10 @@ do_sysinfo_octeon() {
+ 		name="erlite"
+ 		;;
+ 
++	"UBNT_E120"*)
++		name="usg3p"
++		;;
++
+ 	"UBNT_E200"*)
+ 		name="er"
+ 		;;
+diff --git a/target/linux/octeon/base-files/lib/preinit/79_move_config b/target/linux/octeon/base-files/lib/preinit/79_move_config
+index ec63d9f5ff..9c1e642fbb 100644
+--- a/target/linux/octeon/base-files/lib/preinit/79_move_config
++++ b/target/linux/octeon/base-files/lib/preinit/79_move_config
+@@ -5,7 +5,7 @@ move_config() {
+ 	. /lib/functions.sh
+ 
+ 	case "$(board_name)" in
+-		erlite)
++		erlite | usg3p)
+ 			mount -t vfat /dev/sda1 /mnt
+ 			[ -f /mnt/sysupgrade.tgz ] && mv -f /mnt/sysupgrade.tgz /
+ 			umount /mnt
+diff --git a/target/linux/octeon/base-files/lib/upgrade/platform.sh b/target/linux/octeon/base-files/lib/upgrade/platform.sh
+index cd49c0da36..e69a238f0b 100755
+--- a/target/linux/octeon/base-files/lib/upgrade/platform.sh
++++ b/target/linux/octeon/base-files/lib/upgrade/platform.sh
+@@ -23,7 +23,7 @@ platform_get_rootfs() {
+ 
+ platform_copy_config() {
+ 	case "$(board_name)" in
+-	erlite)
++	erlite | usg3p)
+ 		mount -t vfat /dev/sda1 /mnt
+ 		cp -af "$CONF_TAR" /mnt/
+ 		umount /mnt
+@@ -62,7 +62,7 @@ platform_do_upgrade() {
+ 
+ 	[ -b "${rootfs}" ] || return 1
+ 	case "$board" in
+-	erlite)
++	erlite | usg3p)
+ 		kernel=sda1
+ 		;;
+ 	er)
+@@ -83,7 +83,7 @@ platform_check_image() {
+ 
+ 	case "$board" in
+ 	erlite | \
+-	er)
++	er | usg3p)
+ 		local tar_file="$1"
+ 		local kernel_length=`(tar xf $tar_file sysupgrade-$board/kernel -O | wc -c) 2> /dev/null`
+ 		local rootfs_length=`(tar xf $tar_file sysupgrade-$board/root -O | wc -c) 2> /dev/null`
+diff --git a/target/linux/octeon/image/Makefile b/target/linux/octeon/image/Makefile
+index 299e9ba396..37c21cdca5 100644
+--- a/target/linux/octeon/image/Makefile
++++ b/target/linux/octeon/image/Makefile
+@@ -42,4 +42,12 @@ define Device/erlite
+ endef
+ TARGET_DEVICES += erlite
+ 
++USG3P_CMDLINE:=-mtdparts=phys_mapped_flash:512k(boot0)ro,512k(boot1)ro,64k(eeprom)ro root=/dev/sda2 rootfstype=squashfs,ext4 rootwait
++define Device/usg3p
++  CMDLINE := $(USG3P_CMDLINE)
++  DEVICE_TITLE := UniFi Security Gateway 3P
++  DEVICE_PACKAGES := kmod-leds-gpio kmod-ledtrig-gpio
++endef
++TARGET_DEVICES += usg3p
++
+ $(eval $(call BuildImage))
+diff --git a/target/linux/octeon/patches-4.14/101-ubnt-split-devicetrees.patch b/target/linux/octeon/patches-4.14/101-ubnt-split-devicetrees.patch
+new file mode 100644
+index 0000000000..53d11e4ad9
+--- /dev/null
++++ b/target/linux/octeon/patches-4.14/101-ubnt-split-devicetrees.patch
+@@ -0,0 +1,23 @@
++diff --git a/arch/mips/boot/dts/cavium-octeon/ubnt_e100.dts b/arch/mips/boot/dts/cavium-octeon/ubnt_e100-e120.dtsi
++similarity index 92%
++rename from arch/mips/boot/dts/cavium-octeon/ubnt_e100.dts
++rename to arch/mips/boot/dts/cavium-octeon/ubnt_e100-e120.dtsi
++index 243e5dc..000c2d3 100644
++--- a/arch/mips/boot/dts/cavium-octeon/ubnt_e100.dts
+++++ b/arch/mips/boot/dts/cavium-octeon/ubnt_e100-e120.dtsi
++@@ -1,5 +1,5 @@
++ /*
++- * Device tree source for EdgeRouter Lite.
+++ * Device tree source for EdgeRouter Lite + UniFi Security Gateway (common parts).
++  *
++  * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
++  *
++@@ -11,8 +11,6 @@
++ /include/ "octeon_3xxx.dtsi"
++
++ / {
++-	model = "ubnt,e100";
++-
++	soc@0 {
++		smi0: mdio@1180000001800 {
++			phy5: ethernet-phy@5 {
+diff --git a/target/linux/octeon/patches-4.14/102-ubnt-add-erlite-usg3p-dts.patch b/target/linux/octeon/patches-4.14/102-ubnt-add-erlite-usg3p-dts.patch
+new file mode 100644
+index 0000000000..15e17e0d05
+--- /dev/null
++++ b/target/linux/octeon/patches-4.14/102-ubnt-add-erlite-usg3p-dts.patch
+@@ -0,0 +1,58 @@
++--- /dev/null
+++++ b/arch/mips/boot/dts/cavium-octeon/ubnt_e100.dts
++@@ -0,0 +1,15 @@
+++/*
+++ * Device tree source for EdgeRouter Lite.
+++ *
+++ * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
+++ *
+++ * This program is free software; you can redistribute it and/or modify
+++ * it under the terms of the GNU General Public License version 2 as
+++ * published by the Free Software Foundation.
+++ */
+++
+++/include/ "ubnt_e100-e120.dtsi"
+++
+++/ {
+++	model = "ubnt,e100";
+++};
++--- /dev/null
+++++ b/arch/mips/boot/dts/cavium-octeon/ubnt_e120.dts
++@@ -0,0 +1,30 @@
+++/*
+++ * Device tree source for UniFi Security Gateway 3P
+++ *
+++ * Written by: Martin Böh <mart.b@outlook.de>
+++ *
+++ * This program is free software; you can redistribute it and/or modify
+++ * it under the terms of the GNU General Public License version 2 as
+++ * published by the Free Software Foundation.
+++ */
+++
+++/include/ "ubnt_e100-e120.dtsi"
+++#include <dt-bindings/gpio/gpio.h>
+++
+++/ {
+++	model = "ubnt,e120";
+++
+++	leds {
+++		compatible = "gpio-leds";
+++
+++		white {
+++			label = "ubnt:white:dome";
+++			gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
+++		};
+++
+++		blue {
+++			label = "ubnt:blue:dome";
+++			gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
+++		};
+++	};
+++};
++--- a/arch/mips/boot/dts/cavium-octeon/Makefile
+++++ b/arch/mips/boot/dts/cavium-octeon/Makefile
++@@ -1,5 +1,5 @@
++ # SPDX-License-Identifier: GPL-2.0
++-dtb-$(CONFIG_CAVIUM_OCTEON_SOC)	+= octeon_3xxx.dtb octeon_68xx.dtb
+++dtb-$(CONFIG_CAVIUM_OCTEON_SOC)	+= octeon_3xxx.dtb octeon_68xx.dtb ubnt_e100.dtb ubnt_e120.dtb
++ 
++ obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
++ 
+diff --git a/target/linux/octeon/patches-4.14/103-ubnt_usg3p_support.patch b/target/linux/octeon/patches-4.14/103-ubnt_usg3p_support.patch
+new file mode 100644
+index 0000000000..2eb0e2e114
+--- /dev/null
++++ b/target/linux/octeon/patches-4.14/103-ubnt_usg3p_support.patch
+@@ -0,0 +1,73 @@
++--- a/arch/mips/include/asm/octeon/cvmx-bootinfo.h
+++++ b/arch/mips/include/asm/octeon/cvmx-bootinfo.h
++@@ -295,6 +295,7 @@ enum cvmx_board_types_enum {
++	 */
++	CVMX_BOARD_TYPE_CUST_PRIVATE_MIN = 20001,
++	CVMX_BOARD_TYPE_UBNT_E100 = 20002,
+++	CVMX_BOARD_TYPE_UBNT_E120 = 20004,
++	CVMX_BOARD_TYPE_UBNT_E200 = 20003,
++	CVMX_BOARD_TYPE_UBNT_E220 = 20005,
++	CVMX_BOARD_TYPE_CUST_DSR1000N = 20006,
++@@ -398,6 +399,7 @@ static inline const char *cvmx_board_type_to_string(enum
++		    /* Customer private range */
++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_PRIVATE_MIN)
++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E100)
+++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E120)
++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E200)
++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E220)
++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_DSR1000N)
++--- a/arch/mips/cavium-octeon/executive/cvmx-helper-board.c
+++++ b/arch/mips/cavium-octeon/executive/cvmx-helper-board.c
++@@ -169,6 +169,7 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
++		else
++			return -1;
++	case CVMX_BOARD_TYPE_UBNT_E100:
+++	case CVMX_BOARD_TYPE_UBNT_E120:
++		if (ipd_port >= 0 && ipd_port <= 2)
++			return 7 - ipd_port;
++		else
++@@ -387,7 +388,9 @@ int __cvmx_helper_board_hardware_enable(int interface)
++				       0xc);
++		}
++	} else if (cvmx_sysinfo_get()->board_type ==
++-			CVMX_BOARD_TYPE_UBNT_E100) {
+++			CVMX_BOARD_TYPE_UBNT_E100 ||
+++			cvmx_sysinfo_get()->board_type ==
+++			CVMX_BOARD_TYPE_UBNT_E120) {
++		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(0, interface), 0);
++		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(0, interface), 0x10);
++		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(1, interface), 0);
++@@ -413,6 +416,7 @@ enum cvmx_helper_board_usb_clock_types __cvmx_helper_board_usb_get_clock_type(vo
++	case CVMX_BOARD_TYPE_LANAI2_G:
++	case CVMX_BOARD_TYPE_NIC10E_66:
++	case CVMX_BOARD_TYPE_UBNT_E100:
+++	case CVMX_BOARD_TYPE_UBNT_E120:
++		return USB_CLOCK_TYPE_CRYSTAL_12;
++	case CVMX_BOARD_TYPE_NIC10E:
++		return USB_CLOCK_TYPE_REF_12;
++--- a/arch/mips/cavium-octeon/setup.c
+++++ b/arch/mips/cavium-octeon/setup.c
++@@ -1181,6 +1181,8 @@ int octeon_prune_device_tree(void);
++ extern const char __appended_dtb;
++ extern const char __dtb_octeon_3xxx_begin;
++ extern const char __dtb_octeon_68xx_begin;
+++extern const char __dtb_ubnt_e100_begin;
+++extern const char __dtb_ubnt_e120_begin;
++ void __init device_tree_init(void)
++ {
++	const void *fdt;
++@@ -1206,6 +1208,14 @@ void __init device_tree_init(void)
++		fdt = &__dtb_octeon_68xx_begin;
++		do_prune = true;
++		fill_mac = true;
+++	} else if (octeon_bootinfo->board_type == CVMX_BOARD_TYPE_UBNT_E100) {
+++		fdt = &__dtb_ubnt_e100_begin;
+++		do_prune = false;
+++		fill_mac = true;
+++	} else if (octeon_bootinfo->board_type == CVMX_BOARD_TYPE_UBNT_E120) {
+++		fdt = &__dtb_ubnt_e120_begin;
+++		do_prune = false;
+++		fill_mac = true;
++	} else {
++		fdt = &__dtb_octeon_3xxx_begin;
++		do_prune = true;
+diff --git a/target/linux/octeon/patches-4.9/101-ubnt-split-devicetrees.patch b/target/linux/octeon/patches-4.9/101-ubnt-split-devicetrees.patch
+new file mode 100644
+index 0000000000..53d11e4ad9
+--- /dev/null
++++ b/target/linux/octeon/patches-4.9/101-ubnt-split-devicetrees.patch
+@@ -0,0 +1,23 @@
++diff --git a/arch/mips/boot/dts/cavium-octeon/ubnt_e100.dts b/arch/mips/boot/dts/cavium-octeon/ubnt_e100-e120.dtsi
++similarity index 92%
++rename from arch/mips/boot/dts/cavium-octeon/ubnt_e100.dts
++rename to arch/mips/boot/dts/cavium-octeon/ubnt_e100-e120.dtsi
++index 243e5dc..000c2d3 100644
++--- a/arch/mips/boot/dts/cavium-octeon/ubnt_e100.dts
+++++ b/arch/mips/boot/dts/cavium-octeon/ubnt_e100-e120.dtsi
++@@ -1,5 +1,5 @@
++ /*
++- * Device tree source for EdgeRouter Lite.
+++ * Device tree source for EdgeRouter Lite + UniFi Security Gateway (common parts).
++  *
++  * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
++  *
++@@ -11,8 +11,6 @@
++ /include/ "octeon_3xxx.dtsi"
++
++ / {
++-	model = "ubnt,e100";
++-
++	soc@0 {
++		smi0: mdio@1180000001800 {
++			phy5: ethernet-phy@5 {
+diff --git a/target/linux/octeon/patches-4.9/102-ubnt-add-erlite-usg3p-dts.patch b/target/linux/octeon/patches-4.9/102-ubnt-add-erlite-usg3p-dts.patch
+new file mode 100644
+index 0000000000..15e17e0d05
+--- /dev/null
++++ b/target/linux/octeon/patches-4.9/102-ubnt-add-erlite-usg3p-dts.patch
+@@ -0,0 +1,58 @@
++--- /dev/null
+++++ b/arch/mips/boot/dts/cavium-octeon/ubnt_e100.dts
++@@ -0,0 +1,15 @@
+++/*
+++ * Device tree source for EdgeRouter Lite.
+++ *
+++ * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
+++ *
+++ * This program is free software; you can redistribute it and/or modify
+++ * it under the terms of the GNU General Public License version 2 as
+++ * published by the Free Software Foundation.
+++ */
+++
+++/include/ "ubnt_e100-e120.dtsi"
+++
+++/ {
+++	model = "ubnt,e100";
+++};
++--- /dev/null
+++++ b/arch/mips/boot/dts/cavium-octeon/ubnt_e120.dts
++@@ -0,0 +1,30 @@
+++/*
+++ * Device tree source for UniFi Security Gateway 3P
+++ *
+++ * Written by: Martin Böh <mart.b@outlook.de>
+++ *
+++ * This program is free software; you can redistribute it and/or modify
+++ * it under the terms of the GNU General Public License version 2 as
+++ * published by the Free Software Foundation.
+++ */
+++
+++/include/ "ubnt_e100-e120.dtsi"
+++#include <dt-bindings/gpio/gpio.h>
+++
+++/ {
+++	model = "ubnt,e120";
+++
+++	leds {
+++		compatible = "gpio-leds";
+++
+++		white {
+++			label = "ubnt:white:dome";
+++			gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
+++		};
+++
+++		blue {
+++			label = "ubnt:blue:dome";
+++			gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
+++		};
+++	};
+++};
++--- a/arch/mips/boot/dts/cavium-octeon/Makefile
+++++ b/arch/mips/boot/dts/cavium-octeon/Makefile
++@@ -1,4 +1,4 @@
++-dtb-$(CONFIG_CAVIUM_OCTEON_SOC)	+= octeon_3xxx.dtb octeon_68xx.dtb
+++dtb-$(CONFIG_CAVIUM_OCTEON_SOC)	+= octeon_3xxx.dtb octeon_68xx.dtb ubnt_e100.dtb ubnt_e120.dtb
++
++ obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
+diff --git a/target/linux/octeon/patches-4.9/103-ubnt_usg3p_support.patch b/target/linux/octeon/patches-4.9/103-ubnt_usg3p_support.patch
+new file mode 100644
+index 0000000000..2eb0e2e114
+--- /dev/null
++++ b/target/linux/octeon/patches-4.9/103-ubnt_usg3p_support.patch
+@@ -0,0 +1,73 @@
++--- a/arch/mips/include/asm/octeon/cvmx-bootinfo.h
+++++ b/arch/mips/include/asm/octeon/cvmx-bootinfo.h
++@@ -295,6 +295,7 @@ enum cvmx_board_types_enum {
++	 */
++	CVMX_BOARD_TYPE_CUST_PRIVATE_MIN = 20001,
++	CVMX_BOARD_TYPE_UBNT_E100 = 20002,
+++	CVMX_BOARD_TYPE_UBNT_E120 = 20004,
++	CVMX_BOARD_TYPE_UBNT_E200 = 20003,
++	CVMX_BOARD_TYPE_UBNT_E220 = 20005,
++	CVMX_BOARD_TYPE_CUST_DSR1000N = 20006,
++@@ -398,6 +399,7 @@ static inline const char *cvmx_board_type_to_string(enum
++		    /* Customer private range */
++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_PRIVATE_MIN)
++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E100)
+++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E120)
++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E200)
++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E220)
++		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_DSR1000N)
++--- a/arch/mips/cavium-octeon/executive/cvmx-helper-board.c
+++++ b/arch/mips/cavium-octeon/executive/cvmx-helper-board.c
++@@ -169,6 +169,7 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
++		else
++			return -1;
++	case CVMX_BOARD_TYPE_UBNT_E100:
+++	case CVMX_BOARD_TYPE_UBNT_E120:
++		if (ipd_port >= 0 && ipd_port <= 2)
++			return 7 - ipd_port;
++		else
++@@ -387,7 +388,9 @@ int __cvmx_helper_board_hardware_enable(int interface)
++				       0xc);
++		}
++	} else if (cvmx_sysinfo_get()->board_type ==
++-			CVMX_BOARD_TYPE_UBNT_E100) {
+++			CVMX_BOARD_TYPE_UBNT_E100 ||
+++			cvmx_sysinfo_get()->board_type ==
+++			CVMX_BOARD_TYPE_UBNT_E120) {
++		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(0, interface), 0);
++		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(0, interface), 0x10);
++		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(1, interface), 0);
++@@ -413,6 +416,7 @@ enum cvmx_helper_board_usb_clock_types __cvmx_helper_board_usb_get_clock_type(vo
++	case CVMX_BOARD_TYPE_LANAI2_G:
++	case CVMX_BOARD_TYPE_NIC10E_66:
++	case CVMX_BOARD_TYPE_UBNT_E100:
+++	case CVMX_BOARD_TYPE_UBNT_E120:
++		return USB_CLOCK_TYPE_CRYSTAL_12;
++	case CVMX_BOARD_TYPE_NIC10E:
++		return USB_CLOCK_TYPE_REF_12;
++--- a/arch/mips/cavium-octeon/setup.c
+++++ b/arch/mips/cavium-octeon/setup.c
++@@ -1181,6 +1181,8 @@ int octeon_prune_device_tree(void);
++ extern const char __appended_dtb;
++ extern const char __dtb_octeon_3xxx_begin;
++ extern const char __dtb_octeon_68xx_begin;
+++extern const char __dtb_ubnt_e100_begin;
+++extern const char __dtb_ubnt_e120_begin;
++ void __init device_tree_init(void)
++ {
++	const void *fdt;
++@@ -1206,6 +1208,14 @@ void __init device_tree_init(void)
++		fdt = &__dtb_octeon_68xx_begin;
++		do_prune = true;
++		fill_mac = true;
+++	} else if (octeon_bootinfo->board_type == CVMX_BOARD_TYPE_UBNT_E100) {
+++		fdt = &__dtb_ubnt_e100_begin;
+++		do_prune = false;
+++		fill_mac = true;
+++	} else if (octeon_bootinfo->board_type == CVMX_BOARD_TYPE_UBNT_E120) {
+++		fdt = &__dtb_ubnt_e120_begin;
+++		do_prune = false;
+++		fill_mac = true;
++	} else {
++		fdt = &__dtb_octeon_3xxx_begin;
++		do_prune = true;
+-- 
+2.15.1
+
