@@ -5,6 +5,9 @@ WRT_DIR=$SCRIPT_DIR/../
 echo "Using $THREAD_COUNT threads to build"
 echo "Running in directory: $SCRIPT_DIR"
 
+set -e 
+set -o pipefail
+
 patch_sources()
 {
     cd $1
@@ -16,9 +19,7 @@ patch_sources()
         patch -p1 < patches/$i
     done
 
-    # We need to run defconfig first in case theres stuff patched
-    make defconfig 
-    cat config.diff >> .config
+    cat config.diff > .config
     make defconfig
 
     minify_sources
