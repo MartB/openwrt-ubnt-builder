@@ -24,19 +24,6 @@ Subject: [PATCH 1/1] Octeon: usg3p support
  create mode 100644 target/linux/octeon/patches-4.9/102-ubnt-add-erlite-usg3p-dts.patch
  create mode 100644 target/linux/octeon/patches-4.9/103-ubnt_usg3p_support.patch
 
-diff --git a/target/linux/octeon/Makefile b/target/linux/octeon/Makefile
-index 254f22119f..bbf1296c21 100644
---- a/target/linux/octeon/Makefile
-+++ b/target/linux/octeon/Makefile
-@@ -13,7 +13,7 @@ FEATURES:=squashfs ramdisk pci usb
- CPU_TYPE:=octeon
- MAINTAINER:=John Crispin <john@phrozen.org>
- 
--KERNEL_PATCHVER:=4.9
-+KERNEL_PATCHVER:=4.14
- 
- define Target/Description
- 	Build firmware images for Cavium Networks Octeon-based boards.
 diff --git a/target/linux/octeon/base-files/etc/board.d/01_network b/target/linux/octeon/base-files/etc/board.d/01_network
 index 79e508955e..7b65517d0e 100755
 --- a/target/linux/octeon/base-files/etc/board.d/01_network

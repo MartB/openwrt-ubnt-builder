@@ -1,0 +1,19 @@
+diff --git a/feeds/packages/net/usbip/patches-2.0/4.9-usbip-implicit-fallthrough.patch b/feeds/packages/net/usbip/patches-2.0/4.9-usbip-implicit-fallthrough.patch
+new file mode 100644
+index 0000000000..3a363d9fa0
+--- /dev/null
++++ b/feeds/packages/net/usbip/patches-2.0/4.9-usbip-implicit-fallthrough.patch
+@@ -0,0 +1,13 @@
++diff --git a/src/usbip.c b/src/usbip.c
++index d7599d943529..73d8eee8130b 100644
++--- a/src/usbip.c
+++++ b/src/usbip.c
++@@ -176,6 +176,8 @@ int main(int argc, char *argv[])
++ 			break;
++ 		case '?':
++ 			printf("usbip: invalid option\n");
+++			/* Terminate after printing error */
+++			/* FALLTHRU */
++ 		default:
++ 			usbip_usage();
++ 			goto out;
