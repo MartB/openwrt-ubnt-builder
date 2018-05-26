@@ -93,5 +93,7 @@ cd fresh/ && git pull --rebase
 cd ..
 echo "Starting UAP build."
 build_config uap-ac-pro
-echo "Starting USG build."
-build_config usg3p
+#echo "Starting USG build."
+#build_config usg3p
+echo "Starting ERX build"
+build_config erx
