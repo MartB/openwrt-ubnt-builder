@@ -1,0 +1,26 @@
+From 50cac58163239444fa0f51a2273020c311fa9b8a Mon Sep 17 00:00:00 2001
+From: Lorenzo Santina <lorenzo.santina@edu.unito.it>
+Date: Mon, 2 Oct 2017 17:22:57 +0200
+Subject: [PATCH] hostapd: enable fast math library
+
+Enable internal math fast library for hostapd-full
+like wpa_supplicant-full
+
+Signed-off-by: Lorenzo Santina <lorenzo.santina@edu.unito.it>
+---
+ package/network/services/hostapd/files/hostapd-full.config | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/package/network/services/hostapd/files/hostapd-full.config b/package/network/services/hostapd/files/hostapd-full.config
+index fe627676d84..d9bf2b23a4e 100644
+--- a/package/network/services/hostapd/files/hostapd-full.config
++++ b/package/network/services/hostapd/files/hostapd-full.config
+@@ -297,7 +297,7 @@ CONFIG_INTERNAL_LIBTOMMATH=y
+ # At the cost of about 4 kB of additional binary size, the internal LibTomMath
+ # can be configured to include faster routines for exptmod, sqr, and div to
+ # speed up DH and RSA calculation considerably
+-#CONFIG_INTERNAL_LIBTOMMATH_FAST=y
++CONFIG_INTERNAL_LIBTOMMATH_FAST=y
+ 
+ # Interworking (IEEE 802.11u)
+ # This can be used to enable functionality to improve interworking with
