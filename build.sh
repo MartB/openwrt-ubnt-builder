@@ -91,9 +91,7 @@ rm -rf build && mkdir build
 echo "Getting updates from git"
 cd fresh/ && git pull --rebase
 cd ..
-echo "Starting UAP build."
-build_config uap-ac-pro
-#echo "Starting USG build."
-#build_config usg3p
 echo "Starting ERX build"
 build_config erx
+echo "Starting UAP build."
+build_config uap-ac-pro

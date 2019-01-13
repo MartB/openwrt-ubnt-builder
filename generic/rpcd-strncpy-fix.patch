@@ -1,0 +1,37 @@
+diff --git a/package/system/rpcd/patches/0001-fix-strncpy-bounds.patch b/package/system/rpcd/patches/0001-fix-strncpy-bounds.patch
+new file mode 100644
+index 0000000000..53eb66c8e4
+--- /dev/null
++++ b/package/system/rpcd/patches/0001-fix-strncpy-bounds.patch
+@@ -0,0 +1,31 @@
++From 38d33d7a16da9438bd67d8e58cc54a4df5d5b024 Mon Sep 17 00:00:00 2001
++From: MartB <mart.b@outlook.de>
++Date: Thu, 2 Aug 2018 23:11:15 +0200
++Subject: [PATCH] fix strncpy bounds
++
++---
++ sys.c | 4 ++--
++ 1 file changed, 2 insertions(+), 2 deletions(-)
++
++diff --git a/sys.c b/sys.c
++index 43eadc4..f9b6790 100644
++--- a/sys.c
+++++ b/sys.c
++@@ -223,12 +223,12 @@ procstr:
++ 			continue;
++ 
++ 		if (!strcmp(var, "Package:")) {
++-			strncpy(pkg, p1, sizeof(pkg));
+++			strncpy(pkg, p1, sizeof(pkg) - 1);
++ 			continue;
++ 		}
++ 
++ 		if (!strcmp(var, "Version:")) {
++-			strncpy(ver, p1, sizeof(ver));
+++			strncpy(ver, p1, sizeof(ver) - 1);
++ 			continue;
++ 		}
++ 
++-- 
++2.18.0
++
